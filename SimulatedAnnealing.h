@@ -11,10 +11,12 @@ class SimulatedAnnealing
 	int currentCost = INT_MAX;
 	int neighbourCost = INT_MAX;
 
-	int iterations = 100000;
+
+	int tempIterations = 50;
+	int iterations = 10000;
 	double maxT;
 	double lastT;
-	double minT = 0;
+	double minT = 0.5; 
 	Matrix* m;
 
 	void setRandomPath();
@@ -31,13 +33,18 @@ class SimulatedAnnealing
 	void chooseNeighbour_invert(int i, int j);
 	void calculateNeighbourCost_invert(int i, int j);
 
+	//temperature functions
 	inline double probability(double temperature, int cost);
-	inline double nextTemp_09(double temperature);
-	
+	inline double nextTemp_geometric(int temperatureNumber);
+	double factorGeometric = 0.95;
+	inline double nextTemp_linear(int temperatureNumber);
+	int linearDiff;
+	inline double nextTemp_log(int temperatureNumber);
+	double lnBase;
 
 	typedef void(SimulatedAnnealing::*NeighbourFunction)(int, int);
 	NeighbourFunction chooseNeighbour, calculateNeighbourCost;
-	typedef double(SimulatedAnnealing::*TemperatureFunction)(double);
+	typedef double(SimulatedAnnealing::*TemperatureFunction)(int);
 	TemperatureFunction nextTemp;
 
 

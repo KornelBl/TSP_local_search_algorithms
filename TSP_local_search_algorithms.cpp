@@ -3,17 +3,15 @@
 
 #include "pch.h"
 #include <conio.h>
-
-
-
-
 #include "SimulatedAnnealing.h"
+#include "TabuSearch.h"
 
 using namespace std;
 
 void menu();
 
 void simulatedAnnealing(Matrix* matrix, int neighbourType = 0);
+void tabuSearch(Matrix* matrix);
 void SAmenu(Matrix* matrix);
 
 
@@ -34,9 +32,8 @@ void menu() {
 		cout << matrix->name << endl;
 		matrix->show();
 		cout << "\n1.Symulowane wyżarzanie" <<
-			"\n2.Dynamic Programming" <<
-			"\n3.Branch and Bound" <<
-			"\n4.Zmien graf" <<
+			"\n2.Tabu Search" <<
+			"\n3.Zmien graf" <<
 			"\n[Esc] Koniec\n";
 		fflush(stdin);
 		h = _getch();
@@ -45,10 +42,9 @@ void menu() {
 			SAmenu(matrix);
 			break;
 		case '2':
+			tabuSearch(matrix);
 			break;
 		case '3':
-			break;
-		case '4':
 			std::cout << "Podaj nazwe pliku\n";
 			std::cin >> filename;
 			matrix->readFromFile(filename);
@@ -68,6 +64,18 @@ void simulatedAnnealing(Matrix* matrix,int neighbourType)
 	sa.algorithm();
 	timer.endCount();
 	sa.showResult();
+	cout << endl << "Czas: " << timer.getResult() / 1000 << " ms";
+	_getch();
+}
+
+void tabuSearch(Matrix * matrix)
+{
+	Timing timer;
+	TabuSearch ts(matrix);
+	timer.startCount();
+	ts.algorithm();
+	timer.endCount();
+	ts.showResult();
 	cout << endl << "Czas: " << timer.getResult() / 1000 << " ms";
 	_getch();
 }

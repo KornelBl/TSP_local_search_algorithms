@@ -153,9 +153,19 @@ inline double SimulatedAnnealing::probability(double temperature, int cost)
 	return exp((currentCost-cost)/temperature);
 }
 
-inline double SimulatedAnnealing::nextTemp_09(double temperature)
+inline double SimulatedAnnealing::nextTemp_geometric(int temperatureNumber)
 {
-	return 0.95 * temperature;
+	return pow(factorGeometric,temperatureNumber) * maxT;
+}
+
+inline double SimulatedAnnealing::nextTemp_linear(int temperatureNumber)
+{
+	return maxT - linearDiff * temperatureNumber;
+}
+
+inline double SimulatedAnnealing::nextTemp_log(int temperatureNumber)
+{
+	return maxT / (1 + (log(temperatureNumber)/lnBase)) ;
 }
 
 void SimulatedAnnealing::swap(int* T, int a, int b) {
@@ -170,7 +180,8 @@ void SimulatedAnnealing::algorithm(double time)
 	Timing timer;
 	timer.startCount();
 	int index1, index2;
-	for (double T = maxT; T > minT; T = (this->*nextTemp)(T)) {
+	double T = maxT;
+	for (int k = 0; k < tempIterations; k++) {
 		for (int i = 0; i < iterations; i++) {
 			index1 = rand() % (m->vertices - 1);
 			do
@@ -191,13 +202,18 @@ void SimulatedAnnealing::algorithm(double time)
 			{
 				(this->*chooseNeighbour)(index1, index2);
 			}
+
 		}
 		timer.endCount();
 		if (time && timer.getResult() >= time) {
 			lastT = T;
 			break;
 			}
+		std::cout << "Temperature" << T << std::endl;
+		T = (this->*nextTemp)(k);
 		}
+	lastT = T;
+
 }
 
 void SimulatedAnnealing::showResult()
@@ -236,7 +252,15 @@ SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType)
 	default:
 		break;
 	}
-	nextTemp = &SimulatedAnnealing::nextTemp_09;
+	nextTemp = &SimulatedAnnealing::nextTemp_linear;
+	linearDiff = maxT / tempIterations;
+
+	nextTemp = &SimulatedAnnealing::nextTemp_geometric;
+	factorGeometric = 0.95;
+
+	nextTemp = &SimulatedAnnealing::nextTemp_log;
+	//lnBase = (tempIterations/2 * (maxT - minT)/4) / (maxT - (maxT - minT)/4);
+	lnBase = 0.01;
 }
 
 SimulatedAnnealing::~SimulatedAnnealing()
