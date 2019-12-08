@@ -23,6 +23,38 @@ void SimulatedAnnealing::setRandomPath(){
 	delete[] helper;
 }
 
+void SimulatedAnnealing::setNNPath()
+{
+	int length = m->vertices - 1;
+	bestPath = new int[length + 2];
+	currentPath = new int[length + 2];
+
+	//losowa droga startowa
+	srand(time(NULL));
+	int* helper = new int[length];
+	for (int i = 0; i < length; i++) {
+		helper[i] = i + 1;
+	}
+	int minIndex;
+	int at = 0;
+	int minCost = INT_MAX;
+	bestPath[0] = currentPath[0] = bestPath[length + 1] = currentPath[length + 1] = 0;
+	for (int i = 0; i < length; i++) {
+		minCost = INT_MAX;
+		for (int j = 0; j < length - i; j++) {
+			if (m->cost(at, helper[j]) < minCost) {
+				minCost = m->cost(at, helper[j]);
+				minIndex = j;
+			}
+		}
+		at = bestPath[i + 1] = currentPath[i + 1] = helper[minIndex];
+		swap(helper, length - i - 1, minIndex);
+	}
+
+	currentCost = bestCost = m->distanceFunction(currentPath);
+	delete[] helper;
+}
+
 inline void SimulatedAnnealing::copyPath(int * from, int * to)
 {
 	for (int i = 0; i < m->vertices - 1; i++) {
@@ -226,14 +258,15 @@ void SimulatedAnnealing::showResult()
 	std::cout << "min now max Temperature" << minT << "\t" << lastT << "\t" << maxT;
 }
 
-SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType)
+SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType, int temperatureType)
 {
 	srand(time(NULL));
 	m = matrix;	
-	setRandomPath();
+	//setRandomPath();
+	setNNPath();
 	// temperature initialization
 	maxT = currentCost;
-	minT = pow(10,-5) * maxT;
+	minT = pow(10,-7) * maxT;
 	// setting chosen neighbour functions
 	switch (neighbourType)
 	{
@@ -252,15 +285,35 @@ SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType)
 	default:
 		break;
 	}
-	nextTemp = &SimulatedAnnealing::nextTemp_linear;
-	linearDiff = maxT / tempIterations;
 
-	nextTemp = &SimulatedAnnealing::nextTemp_geometric;
-	factorGeometric = 0.95;
+	switch (temperatureType)
+	{
+	case 0:
+		nextTemp = &SimulatedAnnealing::nextTemp_geometric;
+		factorGeometric = pow(minT/maxT,1.0/tempIterations);
+		std::cout << factorGeometric << std::endl;
+		break;
+	case 1:
+		nextTemp = &SimulatedAnnealing::nextTemp_linear;
+		linearDiff = (float)maxT / tempIterations;
+		break;
+	case 2:
+		nextTemp = &SimulatedAnnealing::nextTemp_log;
+		//lnBase = (tempIterations/2 * (maxT - minT)/4) / (maxT - (maxT - minT)/4);
+		lnBase = 0.01;
+		break;
+	default:		
+		nextTemp = &SimulatedAnnealing::nextTemp_geometric;
+		factorGeometric = pow(minT / maxT, 1.0 / tempIterations);
+		std::cout << factorGeometric << std::endl;
+		break;
+		break;
+	}
 
-	nextTemp = &SimulatedAnnealing::nextTemp_log;
-	//lnBase = (tempIterations/2 * (maxT - minT)/4) / (maxT - (maxT - minT)/4);
-	lnBase = 0.01;
+
+
+
+
 }
 
 SimulatedAnnealing::~SimulatedAnnealing()

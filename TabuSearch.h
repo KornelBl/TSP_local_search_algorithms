@@ -5,7 +5,7 @@
 
 class TabuSearch
 {
-	int iterations = 3'00'000;
+	int iterations = 300'000;
 	int* bestPath;
 	int bestCost = INT_MAX;
 	int* currentPath;
@@ -14,21 +14,31 @@ class TabuSearch
 
 
 	void setRandomPath(); 
+	void setNNPath();
 	inline void copyPath(int* from, int* to);
 	void swap(int* T, int a, int b);
 
 	//zbior tabu
-	int lifespan;
+	int tabuLifespan;
 	int** tabuMatrix;
+	void deleteTabuMatrix();
 	void initTabuMatrix();
 
-	struct Neighbour {
-		int ind1;
-		int ind2;
-		int movVal;
-	};
+	//aspiracja
+
+	//dywersyfikacja
+	bool diversification = true;
+	int diversificationCounter = 0;
+	int diversificationPoint = 300;
+	void diversificate();
+
+	//aspiracja
+	bool aspiration = true;
+	bool aspirationCriterium(int i,int j);
+
 	//zbior sasiadow
 	int** moveValue;
+	void deleteMoveValue();
 	void initMoveValues_swap();
 	void renewMoveValues_swap(int i,int j);
 	//kolejka sasiadow
@@ -44,7 +54,7 @@ class TabuSearch
 public:
 	void algorithm(double time = 0);
 	void showResult();
-	TabuSearch(Matrix* matrix);
+	TabuSearch(Matrix* matrix, int startPath, int ifDiversification, int ifAspiration);
 	~TabuSearch();
 };
 

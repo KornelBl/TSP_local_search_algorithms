@@ -25,6 +25,38 @@ void TabuSearch::setRandomPath()
 		delete[] helper;
 }
 
+void TabuSearch::setNNPath()
+{
+	int length = m->vertices - 1;
+	bestPath = new int[length + 2];
+	currentPath = new int[length + 2];
+
+	//losowa droga startowa
+	srand(time(NULL));
+	int* helper = new int[length];
+	for (int i = 0; i < length; i++) {
+		helper[i] = i + 1;
+	}
+	int minIndex;
+	int at = 0;
+	int minCost = INT_MAX;
+	bestPath[0] = currentPath[0] = bestPath[length + 1] = currentPath[length + 1] = 0;
+	for (int i = 0; i < length; i++) {
+		minCost = INT_MAX;
+		for (int j = 0; j < length - i; j++) {
+			if (m->cost(at, helper[j]) < minCost) {
+				minCost = m->cost(at, helper[j]);
+				minIndex = j;
+			}
+		}
+		at = bestPath[i + 1] = currentPath[i + 1] = helper[minIndex];
+		swap(helper, length - i - 1, minIndex);
+	}
+
+	currentCost = bestCost = m->distanceFunction(currentPath);
+	delete[] helper;
+}
+
 inline void TabuSearch::copyPath(int * from, int * to)
 {
 	for (int i = 0; i < m->vertices - 1; i++) {
@@ -39,7 +71,15 @@ void TabuSearch::swap(int * T, int a, int b)
 	T[b] = buf;
 }
 
-void TabuSearch::initTabuMatrix() 
+void TabuSearch::deleteTabuMatrix()
+{
+	for (int i = 0; i < m->vertices - 1; i++) {
+		delete[] tabuMatrix[i];
+	}
+	delete[] tabuMatrix;
+}
+
+void TabuSearch::initTabuMatrix()
 {
 	int len = m->vertices - 1;
 	tabuMatrix = new int*[len];
@@ -50,13 +90,58 @@ void TabuSearch::initTabuMatrix()
 	}
 }
 
+void TabuSearch::diversificate()
+{
+	diversificationCounter = 0;
+	//part of setRandomPath
+	int* helper = new int[m->vertices - 1];
+	for (int i = 0; i < m->vertices - 1; i++) {
+		helper[i] = i + 1;
+	}
+	int index;
+	for (int i = 0; i < m->vertices - 1; i++) {
+		index = rand() % (m->vertices - 1 - i);
+		currentPath[i + 1] = helper[index];
+		swap(helper, m->vertices - i - 2, index);
+	}
+	currentCost = m->distanceFunction(currentPath);
+	delete[] helper;
+	//init move values
+	for (int i = 0; i < m->vertices - 2; i++) {
+		for (int j = i + 1; j < m->vertices - 1; j++) {
+			moveValue[i][j] = calculateNeighbourValue_swap(i, j);
+		}
+	}
+	initMoveValues_swap();
+	//init tabu Matrix
+	for (int i = 0; i < m->vertices - 1; i++) {
+		for (int j = 0; j < m->vertices - 1; j++)
+			tabuMatrix[i][j] = 0;
+	}
+}
+
+bool TabuSearch::aspirationCriterium(int i, int j)
+{
+	if ((moveValue[i][j] + currentCost) < bestCost) return true;
+	else return false;
+}
+
+
+void TabuSearch::deleteMoveValue()
+{
+	for (int i = 0; i < m->vertices - 2; i++) {
+		delete[] moveValue[i];
+	}
+	delete[] moveValue;
+}
+
 void TabuSearch::initMoveValues_swap()
 {
 	int len = m->vertices - 1;
 	moveValue = new int*[len];
-	for (int i = 0; i < m->vertices - 2; i++) {
+	for (int i = 0; i < len - 1; i++) {
 		moveValue[i] = new int[len];
-		for (int j = i + 1; j < m->vertices - 1; j++) {
+		for (int j = i + 1; j < len; j++) {
 			moveValue[i][j] = calculateNeighbourValue_swap(i, j);
 		}
 	}
@@ -103,8 +188,12 @@ void TabuSearch::chooseNeighbour_swap(int i, int j)
 	swap(currentPath, i + 1, j + 1);
 	currentCost += moveValue[i][j];
 	if (currentCost < bestCost) {
+		diversificationCounter = 0;
 		bestCost = currentCost;
 		copyPath(currentPath, bestPath);
+	}
+	else {
+		diversificationCounter++;
 	}
 }
 
@@ -145,20 +234,25 @@ void TabuSearch::algorithm(double time)
 	//stworzenie listy tabu, wype³nienie zerami
 	initTabuMatrix();
 	initMoveValues_swap();
+	int diversificationCounter = 0;
+	int ind1, ind2, bestMoveValue;
 	for (int _ = 0; _ < iterations; _++) {
-
+		bestMoveValue = INT_MAX;
 
 		//wybor nastepcy
 		//w trakcie wybierania nastepcow aktualizowac liste tabu
-
-		int bestMoveValue = INT_MAX;
-		int ind1, ind2;
-
 		for (int i = 0; i < m->vertices - 2; i++) {
 			for (int j = i + 1; j < m->vertices - 1; j++) {
 				if (tabuMatrix[i][j] != 0) {
 					tabuMatrix[i][j] -= 1;
-					//ewentualna aspiracja
+					//aspiracja
+					if (aspiration) {
+						if (moveValue[i][j] < bestMoveValue && aspirationCriterium(i, j)) {
+							ind1 = i;
+							ind2 = j;
+							bestMoveValue = moveValue[i][j];
+						}
+					}
 					continue;
 				}
 				if (moveValue[i][j] < bestMoveValue) {
@@ -168,13 +262,18 @@ void TabuSearch::algorithm(double time)
 				}
 			}
 		}
+		//podmiana na wybranego s¹siada
 		chooseNeighbour_swap(ind1, ind2);
-
-		//aktualizacja listy tabu
-		tabuMatrix[ind1][ind2] = lifespan;
-		//aktualizacja sasiedztwa
-		renewMoveValues_swap(ind1, ind2);
-		
+		//dywersyfikacja po braku poprawy najlepszego rozwiazanie przez okreœlon¹ liczbe iteracji
+		if (diversificationCounter == diversificationPoint && diversification) {
+			diversificate();
+		}
+		else {
+			//aktualizacja listy tabu
+			tabuMatrix[ind1][ind2] = tabuLifespan;
+			//aktualizacja sasiedztwa
+			renewMoveValues_swap(ind1, ind2);
+		}
 		timer.endCount();
 		if (time && timer.getResult() >= time) {
 			break;
@@ -192,12 +291,48 @@ void TabuSearch::showResult()
 	
 }
 
-TabuSearch::TabuSearch(Matrix* matrix)
+TabuSearch::TabuSearch(Matrix* matrix, int startPath, int ifDiversification, int ifAspiration)
 {
 	srand(time(NULL));
 	m = matrix;
-	setRandomPath();
-	lifespan = m->vertices * 3;
+	switch (startPath)
+	{
+	case 0:
+		setRandomPath();
+		break;
+	case 1:
+		setNNPath();
+		break;
+	default:
+		break;
+	}
+
+	switch (ifDiversification)
+	{
+	case 0:
+		diversification = true;
+		break;
+	case 1:
+		diversification = false;
+		break;
+	default:
+		break;
+	}
+
+	switch (ifAspiration)
+	{
+	case 0:
+		aspiration = true;
+		break;
+	case 1:
+		aspiration = false;
+		break;
+	default:
+		break;
+	}
+
+	tabuLifespan = m->vertices * 3;
+	diversificationPoint = tabuLifespan / 2;
 }
 
 
@@ -205,4 +340,6 @@ TabuSearch::~TabuSearch()
 {
 	delete[] bestPath;
 	delete[] currentPath;
+	deleteTabuMatrix();
+	deleteMoveValue();
 }
