@@ -12,8 +12,8 @@ class SimulatedAnnealing
 	int neighbourCost = INT_MAX;
 
 
-	int tempIterations = 1000;
-	int iterations = 10000;
+	int tempIterations = 500;
+	int iterations = 400;
 	double maxT;
 	double lastT;
 	double minT = 0.01; 
@@ -23,7 +23,7 @@ class SimulatedAnnealing
 	void setNNPath();
 	inline void copyPath(int* from, int* to);
 	void swap(int* T, int a, int b);
-
+	
 	//neighbour functions
 	void chooseNeighbour_swap(int i, int j);
 	void calculateNeighbourCost_swap(int i, int j);
@@ -32,7 +32,9 @@ class SimulatedAnnealing
 	void calculateNeighbourCost_insert(int i, int j);
 
 	void chooseNeighbour_invert(int i, int j);
-	void calculateNeighbourCost_invert(int i, int j);
+	void calculateNeighbourCost_invertAsymetric(int i, int j);
+	void calculateNeighbourCost_invertSymetric(int i, int j);
+
 
 	//temperature functions
 	inline double probability(double temperature, int cost);
@@ -51,9 +53,10 @@ class SimulatedAnnealing
 
 public:
 
+	int getBestCost();
 	void algorithm(double time = 0);	
 	void showResult();
-	SimulatedAnnealing(Matrix* matrix,int neighbourType,int temperatureType);
+	SimulatedAnnealing(Matrix* matrix, int neighbourType, int temperatureType, int startPath = 1, int tempIterations = 1000,int iterations = 5000);
 	~SimulatedAnnealing();
 };
 

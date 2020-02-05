@@ -1,5 +1,11 @@
 #include "pch.h"
 #include "SimulatedAnnealing.h"
+#include <fstream>
+
+int SimulatedAnnealing::getBestCost()
+{
+	return bestCost;
+}
 
 void SimulatedAnnealing::setRandomPath(){
 	int length = m->vertices - 1;
@@ -157,7 +163,7 @@ void SimulatedAnnealing::chooseNeighbour_invert(int i, int j)
 	currentCost = neighbourCost;
 }
 
-void SimulatedAnnealing::calculateNeighbourCost_invert(int i, int j)
+void SimulatedAnnealing::calculateNeighbourCost_invertAsymetric(int i, int j)
 {
 	neighbourCost = currentCost;
 	if (i > j) {
@@ -167,7 +173,6 @@ void SimulatedAnnealing::calculateNeighbourCost_invert(int i, int j)
 	}
 	i++;
 	j++;
-	int bufor;
 	for (int at = i; at < j; at++) {
 		neighbourCost -= m->cost(currentPath[at], currentPath[at + 1]);
 		neighbourCost += m->cost(currentPath[at+1], currentPath[at]);
@@ -178,6 +183,23 @@ void SimulatedAnnealing::calculateNeighbourCost_invert(int i, int j)
 	neighbourCost += m->cost(currentPath[i - 1], currentPath[j]);
 	neighbourCost += m->cost(currentPath[i], currentPath[j + 1]);
 
+}
+
+void SimulatedAnnealing::calculateNeighbourCost_invertSymetric(int i, int j)
+{
+	neighbourCost = currentCost;
+	if (i > j) {
+		int bufor = i;
+		i = j;
+		j = bufor;
+	}
+	i++;
+	j++;
+
+	neighbourCost -= m->cost(currentPath[i - 1], currentPath[i]);
+	neighbourCost += m->cost(currentPath[i - 1], currentPath[j]);
+	neighbourCost -= m->cost(currentPath[j], currentPath[j + 1]);
+	neighbourCost += m->cost(currentPath[i], currentPath[j + 1]);
 }
 
 inline double SimulatedAnnealing::probability(double temperature, int cost)
@@ -209,6 +231,11 @@ void SimulatedAnnealing::swap(int* T, int a, int b) {
 
 void SimulatedAnnealing::algorithm(double time)
 {
+	//std::string filename = "SA_17_10.csv";
+	//std::fstream file;
+	//file.open(filename, std::ios_base::out);
+
+
 	Timing timer;
 	timer.startCount();
 	int index1, index2;
@@ -216,7 +243,7 @@ void SimulatedAnnealing::algorithm(double time)
 	for (int k = 0; k < tempIterations; k++) {
 		for (int i = 0; i < iterations; i++) {
 			index1 = rand() % (m->vertices - 1);
-			do
+			do 
 			{
 				index2 = rand() % (m->vertices - 1);
 			} while (index1 == index2);
@@ -235,17 +262,27 @@ void SimulatedAnnealing::algorithm(double time)
 				(this->*chooseNeighbour)(index1, index2);
 			}
 
+
+			timer.endCount();
+			//plik
+
+	//		file << timer.getResult() << ";" << currentCost << ";" << bestCost << std::endl;
+
+
+
 		}
-		timer.endCount();
+
+
 		if (time && timer.getResult() >= time) {
 			lastT = T;
 			break;
 			}
-		std::cout << "Temperature" << T << std::endl;
+		//std::cout << "Temperature" << T << std::endl;
 		T = (this->*nextTemp)(k);
 		}
 	lastT = T;
 
+	//file.close();
 }
 
 void SimulatedAnnealing::showResult()
@@ -258,15 +295,26 @@ void SimulatedAnnealing::showResult()
 	std::cout << "min now max Temperature" << minT << "\t" << lastT << "\t" << maxT;
 }
 
-SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType, int temperatureType)
+SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType, int temperatureType,int startPath, int tempIterations, int iterations)
 {
+	this->tempIterations = tempIterations;
+	this->iterations = iterations;
 	srand(time(NULL));
 	m = matrix;	
-	//setRandomPath();
-	setNNPath();
+	switch (startPath)
+	{
+	case 0:
+		setRandomPath();
+		break;
+	case 1:
+		setNNPath();
+		break;
+	default:
+		break;
+	}
 	// temperature initialization
 	maxT = currentCost;
-	minT = pow(10,-7) * maxT;
+	minT = pow(10,-5) * maxT;
 	// setting chosen neighbour functions
 	switch (neighbourType)
 	{
@@ -279,7 +327,11 @@ SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType, int tem
 		chooseNeighbour = &SimulatedAnnealing::chooseNeighbour_insert;
 		break;
 	case 2:
-		calculateNeighbourCost = &SimulatedAnnealing::calculateNeighbourCost_invert;
+		calculateNeighbourCost = &SimulatedAnnealing::calculateNeighbourCost_invertAsymetric;
+		chooseNeighbour = &SimulatedAnnealing::chooseNeighbour_invert;
+		break;
+	case 3:
+		calculateNeighbourCost = &SimulatedAnnealing::calculateNeighbourCost_invertSymetric;
 		chooseNeighbour = &SimulatedAnnealing::chooseNeighbour_invert;
 		break;
 	default:
@@ -299,15 +351,14 @@ SimulatedAnnealing::SimulatedAnnealing(Matrix* matrix,int neighbourType, int tem
 		break;
 	case 2:
 		nextTemp = &SimulatedAnnealing::nextTemp_log;
-		//lnBase = (tempIterations/2 * (maxT - minT)/4) / (maxT - (maxT - minT)/4);
-		lnBase = 0.01;
+		//lnBase = (tempIterations * (maxT - minT)) / (maxT);
+		lnBase = (float)tempIterations/10000;
 		break;
 	default:		
 		nextTemp = &SimulatedAnnealing::nextTemp_geometric;
 		factorGeometric = pow(minT / maxT, 1.0 / tempIterations);
 		std::cout << factorGeometric << std::endl;
-		break;
-		break;
+		break; 
 	}
 
 
